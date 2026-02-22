@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <title>API - MindCare</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; max-width: 900px; margin: auto; background-color: #acacac }
+        h2 { text-align: center; color: #000000; }
+        .model-section { background: rgba(255, 255, 255, 0.648); border-radius: 25px; margin-bottom: 20px; border: 2px solid #cccccc; padding: 10px; }
+        summary { cursor: pointer; padding: 15px; color: #000000; font-weight: bold; font-size: 1.2rem; outline: none; }
+        .endpoint-card { padding: 15px; border: 2px solid #cccccc; border-left: 5px solid #0993c9; border-radius: 8px; margin-bottom: 10px; background: #ffffff; }
+        textarea { width: 100%; height: 80px; font-family: monospace; padding: 10px; background: #272822; color: #f8f8f2; border-radius: 4px; box-sizing: border-box; margin-top: 5px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+        .btn-post { background: #28a745; color: white; }
+        .btn-get { background: #007bff; color: white; }
+        .res-container { background: #2d2d2d; color: #61dafb; padding: 15px; border-radius: 4px; margin-top: 10px; font-size: 0.9rem; overflow-x: auto; min-height: 40px; white-space: pre-wrap; }
+        label { font-weight: bold; display: block; margin-top: 10px; font-size: 0.9rem; color: #333; }
+    </style>  
+</head>
+<body>
+
+    <h2>Gerenciador da Zencode API</h2>
+
+    <details open class="model-section">
+        <summary>Candidato & Credencial</summary>
+        
+        <div class="endpoint-card">
+            <h4>POST / (Criar Candidato + Credencial)</h4>
+            <label>Dados do Candidato:</label>
+            <textarea id="json_post_candidato">{ "nome": "exemplo", "genero": "Masculino", "estado": false }</textarea>
+            <label>Dados da Credencial:</label>
+            <textarea id="json_post_credencia">{ "telefone": "999999999", "email": "exemplo@gmail.com", "nif": "1234567890" }</textarea>
+            <button class="btn btn-post" onclick="enviarDados()">Adicionar Candidato</button>
+            <pre class="res-container" id="res_post">Resposta aparecerá aqui...</pre>
+        </div>
+
+        <div class="endpoint-card">
+            <h4>GET / (Listar Todos)</h4>
+            <button class="btn btn-get" onclick="buscarTodos()">Buscar todos os candidados</button>
+            <pre class="res-container" id="res_get_all">Lista aparecerá aqui...</pre>
+        </div>
+
+        <div class="endpoint-card">
+            <h4>GET /:id (Buscar por ID)</h4>
+            <input type="number" id="id_busca" placeholder="Digite o ID" style="width: 100%; padding: 8px;">
+            <button class="btn btn-get" onclick="buscarPorId()">Buscar um candidado</button>
+            <pre class="res-container" id="res_get_id">Resultado aparecerá aqui...</pre>
+        </div>
+
+        <div class="endpoint-card" style="border-left: 5px solid #ffc107;">
+            <h4>PUT /:id (Atualizar Candidato + Credencial)</h4>
+            <input type="number" id="id_atualizar" placeholder="ID do registro para editar" style="width: 100%; padding: 8px; margin-bottom: 10px;">
+            
+            <label>Novos dados do Candidato:</label>
+            <textarea id="json_put_candidato">{ "nome": "exemplo", "genero": "Masculino", "estado": false }</textarea>
+            
+            <label>Novos dados da Credencial:</label>
+            <textarea id="json_put_credencia">{ "telefone": "999999999", "email": "exemplo@gmail.com", "nif": "1234567890" }</textarea>
+            
+            <button class="btn" style="background: #ffc107; color: black;" onclick="atualizarDados()">Atualização candidado</button>
+            <pre class="res-container" id="res_put">Resultado da atualização aparecerá aqui...</pre>
+        </div>
+
+        <div class="endpoint-card">
+            <h4>DELETE /:id (Eliminar Ambos)</h4>
+            <input type="number" id="id_delete" placeholder="ID para deletar" style="width: 100%; padding: 8px;">
+            <button class="btn" style="background: #dc3545; color: white;" onclick="deletarAmbos()">Eliminar candidado</button>
+            <pre class="res-container" id="res_delete">Status da exclusão...</pre>
+        </div>
+    </details>
+
+    <script>
+        const BASE_URL = 'http://localhost:5000/zencode/API/';
+
+        async function tratarResposta(response) {
+            const text = await response.text();
+            try {
+                return text ? JSON.parse(text) : { status: "OK", code: response.status };
+            } catch (e) {
+                return { rawResponse: text };
+            }
+        }
+
+        // post
+        async function enviarDados() {
+            const display = document.getElementById('res_post');
+            const candidatoBody = document.getElementById('json_post_candidato').value;
+            const credenciaBody = document.getElementById('json_post_credencia').value;
+
+            try {
+                display.innerText = "Enviando...";
+                
+                const res1 = await fetch(BASE_URL + 'candidato', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: candidatoBody
+                });
+                const dataCandidato = await tratarResposta(res1);
+
+                const res2 = await fetch(BASE_URL + 'credencia', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: credenciaBody
+                });
+                const dataCredencia = await tratarResposta(res2);
+
+                display.innerText = JSON.stringify({ candidato: dataCandidato, credencial: dataCredencia }, null, 2);
+            } catch (err) {
+                display.innerText = "Erro na conexão: " + err.message;
+            }
+        }
+
+        // get all
+        async function buscarTodos() {
+            const display = document.getElementById('res_get_all');
+            try {
+                const [r1, r2] = await Promise.all([
+                    fetch(BASE_URL + 'candidato').then(tratarResposta),
+                    fetch(BASE_URL + 'credencia').then(tratarResposta)
+                ]);
+                display.innerText = JSON.stringify({ candidatos: r1, credenciais: r2 }, null, 2);
+            } catch (err) {
+                display.innerText = "Erro ao buscar: " + err.message;
+            }
+        }
+
+        // get id
+        async function buscarPorId() {
+            const id = document.getElementById('id_busca').value;
+            const display = document.getElementById('res_get_id');
+            if(!id) return alert("Insira um ID");
+
+            try {
+                const [r1, r2] = await Promise.all([
+                    fetch(`${BASE_URL}candidato/${id}`).then(tratarResposta),
+                    fetch(`${BASE_URL}credencia/${id}`).then(tratarResposta)
+                ]);
+                display.innerText = JSON.stringify({ candidato: r1, credencial: r2 }, null, 2);
+            } catch (err) {
+                display.innerText = "Erro: " + err.message;
+            }
+        }
+
+        // put
+        async function atualizarDados() {
+            const id = document.getElementById('id_atualizar').value;
+            const display = document.getElementById('res_put');
+            
+            if (!id) return alert("Insira o ID");
+
+            try {
+                display.innerText = "Processando atualização...";
+                const candidatoBody = document.getElementById('json_put_candidato').value;
+                const credenciaBody = document.getElementById('json_put_credencia').value;
+
+                const res1 = await fetch(`${BASE_URL}candidato/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: candidatoBody
+                });
+                const data1 = await tratarResposta(res1);
+
+                const res2 = await fetch(`${BASE_URL}credencia/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: credenciaBody
+                });
+                const data2 = await tratarResposta(res2);
+
+                display.innerText = JSON.stringify({
+                    mensagem: "Dados atualizados com sucesso!",
+                    candidato_obs: data1,
+                    credencia_obs: data2
+                }, null, 2);
+
+            } catch (err) {
+                display.innerText = "Erro ao atualizar: " + err.message;
+            }
+        }
+
+        // delete
+        async function deletarAmbos() {
+            const id = document.getElementById('id_delete').value;
+            const display = document.getElementById('res_delete');
+            if(!id || !confirm("Isso apagará o candidato. Confirmar?")) return;
+
+            try {
+                const res1 = await fetch(`${BASE_URL}credencia/${id}`, { method: 'DELETE' });
+                const d1 = await tratarResposta(res1);
+
+                const res2 = await fetch(`${BASE_URL}candidato/${id}`, { method: 'DELETE' });
+                const d2 = await tratarResposta(res2);
+
+                display.innerText = JSON.stringify({ delete_credencial: d1, delete_candidato: d2 }, null, 2);
+            } catch (err) {
+                display.innerText = "Erro ao deletar: " + err.message;
+            }
+        }
+    </script>
+</body>
+</html>
